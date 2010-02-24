@@ -67,31 +67,10 @@ public class Ts3QueryThread extends QueryThread {
 
             if (inStream.readLine().equals("TS3")) {
                 outStream = new PrintWriter(ts3Socket.getOutputStream(), true);
-                outStream.println("version");
-                Pattern versionPattern = Pattern.compile("version=(.+)\\sbuild=[0-9]+\\splatform=[A-Za-z]+");
-                Matcher matcher;
-                String line;
-                while (!(line = inStream.readLine()).startsWith("error")) {
-                    if (!line.trim().equals("")) {
-                        matcher = versionPattern.matcher(line);
-                        if (matcher.matches()) {
-                            ts3Settings.put("version", matcher.group(1));
-                        }
-                    }
-                }
                 Pattern errorPattern = Pattern.compile("error\\sid=([0-9]+)\\smsg=([^\\s]+).+"); //error id=0 msg=ok
+                String line;
+                Matcher matcher;
 
-                matcher = errorPattern.matcher(line);
-                if (matcher.matches()) {
-                    if (!matcher.group(1).equals("0")) {
-                        throw new Exception(matcher.group(2).replace("\\s", " "));
-                    }
-                } else {
-                    throw new Exception("invalid error response");
-                }
-                
-                Thread.sleep(1000);
-                
                 outStream.println(String.format("serveridgetbyport virtualserver_port=%d", ts3Server.getPort()));
                 String id = null;
                 Pattern idPattern = Pattern.compile("server_id=([0-9]+)");
@@ -104,7 +83,7 @@ public class Ts3QueryThread extends QueryThread {
                 matcher = errorPattern.matcher(line);
                 if (matcher.matches()) {
                     if (!matcher.group(1).equals("0")) {
-                        throw new Exception(String.format("couldn't get serverid %s", matcher.group(2).replace("\\s", " ")));
+                        throw new Exception(String.format("couldn't get serverid %s", stripTsString(matcher.group(2))));
                     }
                 } else {
                     throw new Exception("invalid error response");
@@ -116,14 +95,47 @@ public class Ts3QueryThread extends QueryThread {
                 matcher = errorPattern.matcher(line);
                 if (matcher.matches()) {
                     if (!matcher.group(1).equals("0")) {
-                        throw new Exception(String.format("couldn't select virtual server %s", matcher.group(2).replace("\\s", " ")));
+                        throw new Exception(String.format("couldn't select virtual server %s", stripTsString(matcher.group(2))));
                     }
                 } else {
                     throw new Exception("invalid error response");
                 }
-                
-                Thread.sleep(1000);
-                
+
+                outStream.println("serverinfo");
+                while (!(line = inStream.readLine().trim()).startsWith("error")) {
+                    if (!line.equals("")) {
+                        Pattern pattern;
+                        pattern = Pattern.compile("virtualserver_name=([^\\s]+)");
+                        if((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("name", stripTsString(matcher.group(1)));
+                        }
+                        pattern = Pattern.compile("virtualserver_welcomemessage=([^\\s]+)");
+                        if((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("welcomemessage", stripTsString(matcher.group(1)));                            
+                        }
+                        pattern = Pattern.compile("virtualserver_version=([^\\s]+)");
+                        if((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("version", stripTsString(matcher.group(1)));                            
+                        }
+                        pattern = Pattern.compile("virtualserver_platform=([^\\s]+)");
+                        if((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("platform", stripTsString(matcher.group(1)));                            
+                        }
+                        pattern = Pattern.compile("virtualserver_uptime=([0-9]+)");
+                        if((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("uptime", stripTsString(matcher.group(1)));                            
+                        }
+                    }
+                }
+                matcher = errorPattern.matcher(line);
+                if (matcher.matches()) {
+                    if (!matcher.group(1).equals("0")) {
+                        throw new Exception(String.format("serverinfo failed: %s", stripTsString(matcher.group(2))));
+                    }
+                } else {
+                    throw new Exception("invalid error response");
+                }
+
                 outStream.println("channellist");
                 HashMap<String, String> channels = new HashMap<String, String>();
                 Pattern channelPattern = Pattern.compile("cid=([0-9]+)\\spid=[0-9]+\\schannel_order=[0-9]+\\schannel_name=([^\\s]+)\\stotal_clients=[0-9]+\\schannel_needed_subscribe_power=[0-9]+");
@@ -135,7 +147,7 @@ public class Ts3QueryThread extends QueryThread {
                         for (String channel : lines) {
                             matcher = channelPattern.matcher(channel);
                             if (matcher.matches()) {
-                                channels.put(matcher.group(1), matcher.group(2).replace("\\s", " ").replace("\\p", "|"));
+                                channels.put(matcher.group(1), stripTsString(matcher.group(2)));
                             }
                         }
                     }
@@ -143,14 +155,12 @@ public class Ts3QueryThread extends QueryThread {
                 matcher = errorPattern.matcher(line);
                 if (matcher.matches()) {
                     if (!matcher.group(1).equals("0")) {
-                        throw new Exception(String.format("channellist failed: %s", matcher.group(2).replace("\\s", " ")));
+                        throw new Exception(String.format("channellist failed: %s", stripTsString(matcher.group(2))));
                     }
                 } else {
                     throw new Exception("invalid error response");
                 }
 
-                Thread.sleep(1000);
-                
                 outStream.println("clientlist");
                 Pattern realPlayerPattern = Pattern.compile("clid=[0-9]+\\scid=([0-9]+)\\sclient_database_id=[0-9]+\\sclient_nickname=([^\\s]+)\\sclient_type=0");
                 // clid=6 cid=1 client_database_id=3 client_nickname=merlin1991 client_type=0
@@ -161,7 +171,7 @@ public class Ts3QueryThread extends QueryThread {
                         for (String player : lines) {
                             matcher = realPlayerPattern.matcher(player);
                             if (matcher.matches()) {
-                                ts3Users.add(new Ts3User(matcher.group(2).replace("\\s", " ").replace("\\p", "|"), channels.get(matcher.group(1))));
+                                ts3Users.add(new Ts3User(stripTsString(matcher.group(2)), channels.get(matcher.group(1))));
                             }
                         }
                     }
@@ -169,7 +179,7 @@ public class Ts3QueryThread extends QueryThread {
                 matcher = errorPattern.matcher(line);
                 if (matcher.matches()) {
                     if (!matcher.group(1).equals("0")) {
-                        throw new Exception(String.format("clientlist failed: %s", matcher.group(2).replace("\\s", " ")));
+                        throw new Exception(String.format("clientlist failed: %s", stripTsString(matcher.group(2))));
                     }
                 } else {
                     throw new Exception("invalid error response");
@@ -194,6 +204,10 @@ public class Ts3QueryThread extends QueryThread {
             } catch (Exception ex) {
             }
         }
+    }
+
+    private String stripTsString(String original) {
+        return original.replace("\\s", " ").replace("\\p", "|");
     }
 
     @Override

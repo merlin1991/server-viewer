@@ -55,13 +55,24 @@ public class Ts3ServerData implements QueryData {
         } else {
             switch (ts3Users.size()) {
                 case 1:
-                    serverNode = new ServerTreeNode(ts3Server.getName() + " (1 player)", ServerTreeNodeType.Ts3);
+                    if (ts3Settings.get("name") != null) {
+                        serverNode = new ServerTreeNode(stripTsString(ts3Settings.get("name")) + " (1 player)", ServerTreeNodeType.Ts3);
+                    } else {
+                        serverNode = new ServerTreeNode(ts3Server.getName() + " (1 player)", ServerTreeNodeType.Ts3);
+                    }
                     break;
                 default:
-                    serverNode = new ServerTreeNode(ts3Server.getName() + " (" + ts3Users.size() + " players)", ServerTreeNodeType.Ts3);
+                    if (ts3Settings.get("name") != null) {
+                        serverNode = new ServerTreeNode(stripTsString(ts3Settings.get("name")) + " (" + ts3Users.size() + " players)", ServerTreeNodeType.Ts3);
+                    } else {
+                        serverNode = new ServerTreeNode(ts3Server.getName() + " (" + ts3Users.size() + " players)", ServerTreeNodeType.Ts3);
+                    }
                     break;
             }
-            serverNode.add(new ServerTreeNode("version: " + ts3Settings.get("version"), ServerTreeNodeType.Info));
+            serverNode.add(new ServerTreeNode(stripTsString(ts3Settings.get("welcomemessage")), ServerTreeNodeType.Info));
+            serverNode.add(new ServerTreeNode(String.format("version: %s", ts3Settings.get("version")), ServerTreeNodeType.Info));
+            serverNode.add(new ServerTreeNode(String.format("platform: %s", ts3Settings.get("platform")), ServerTreeNodeType.Info));
+            serverNode.add(new ServerTreeNode(String.format("uptime: %s Seconds", ts3Settings.get("uptime")), ServerTreeNodeType.Info));
             ServerTreeNode playerNode;
             for (Ts3User player : ts3Users) {
                 playerNode = new ServerTreeNode(player.getName(), ServerTreeNodeType.Users);
@@ -70,5 +81,13 @@ public class Ts3ServerData implements QueryData {
             }
         }
         return serverNode;
+    }
+
+    private String stripTsString(String original) {
+        if (original != null) {
+            return original.replace("\\s", " ").replace("\\p", "|");
+        } else {
+            return null;
+        }
     }
 }
