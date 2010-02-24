@@ -1,0 +1,5 @@
+steps needed to compile and run:
+
+cd to src/
+javac serverviewer/Main.java
+java serverviewer.Main

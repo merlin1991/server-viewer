@@ -1,9 +1,7 @@
 server-viewer is a multi protocol server parser for game servers
-Written in java (Java SE 6)
+Written in java (Java SE 6) under the MIT license
 
 currently it supports:
 	Wolfenstein:Enemy territory
 	Teamspeak2
 	Teamspeak3
-
-
