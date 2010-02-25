@@ -37,13 +37,12 @@ import java.util.regex.Pattern;
 import serverviewer.config.Ts3Server;
 import serverviewer.net.data.QueryData;
 import serverviewer.net.data.Ts3ServerData;
-import serverviewer.net.data.Ts3User;
 
 public class Ts3QueryThread extends QueryThread {
 
     private Ts3Server ts3Server;
     private Exception exception = null;
-    private ArrayList<Ts3User> ts3Users = new ArrayList<Ts3User>();
+    private ArrayList<HashMap<String, String>> ts3Users = new ArrayList<HashMap<String, String>>();
     private HashMap<String, String> ts3Settings = new HashMap<String, String>();
 
     public Ts3QueryThread(Ts3Server ts3Server) {
@@ -106,24 +105,24 @@ public class Ts3QueryThread extends QueryThread {
                     if (!line.equals("")) {
                         Pattern pattern;
                         pattern = Pattern.compile("virtualserver_name=([^\\s]+)");
-                        if((matcher = pattern.matcher(line)).find()) {
+                        if ((matcher = pattern.matcher(line)).find()) {
                             ts3Settings.put("name", stripTsString(matcher.group(1)));
                         }
                         pattern = Pattern.compile("virtualserver_welcomemessage=([^\\s]+)");
-                        if((matcher = pattern.matcher(line)).find()) {
-                            ts3Settings.put("welcomemessage", stripTsString(matcher.group(1)));                            
+                        if ((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("welcomemessage", stripTsString(matcher.group(1)));
                         }
                         pattern = Pattern.compile("virtualserver_version=([^\\s]+)");
-                        if((matcher = pattern.matcher(line)).find()) {
-                            ts3Settings.put("version", stripTsString(matcher.group(1)));                            
+                        if ((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("version", stripTsString(matcher.group(1)));
                         }
                         pattern = Pattern.compile("virtualserver_platform=([^\\s]+)");
-                        if((matcher = pattern.matcher(line)).find()) {
-                            ts3Settings.put("platform", stripTsString(matcher.group(1)));                            
+                        if ((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("platform", stripTsString(matcher.group(1)));
                         }
                         pattern = Pattern.compile("virtualserver_uptime=([0-9]+)");
-                        if((matcher = pattern.matcher(line)).find()) {
-                            ts3Settings.put("uptime", stripTsString(matcher.group(1)));                            
+                        if ((matcher = pattern.matcher(line)).find()) {
+                            ts3Settings.put("uptime", stripTsString(matcher.group(1)));
                         }
                     }
                 }
@@ -162,16 +161,17 @@ public class Ts3QueryThread extends QueryThread {
                 }
 
                 outStream.println("clientlist");
-                Pattern realPlayerPattern = Pattern.compile("clid=[0-9]+\\scid=([0-9]+)\\sclient_database_id=[0-9]+\\sclient_nickname=([^\\s]+)\\sclient_type=0");
+                ArrayList<String> cids = new ArrayList<String>();
+                Pattern realPlayerPattern = Pattern.compile("clid=([0-9]+)\\scid=[0-9]+\\sclient_database_id=[0-9]+\\sclient_nickname=[^\\s]+\\sclient_type=0");
                 // clid=6 cid=1 client_database_id=3 client_nickname=merlin1991 client_type=0
-                while (!(line = inStream.readLine()).startsWith("error")) {
-                    if (!line.trim().equals("")) {
+                while (!(line = inStream.readLine().trim()).startsWith("error")) {
+                    if (!line.equals("")) {
                         String[] lines;
                         lines = line.split("\\|");
                         for (String player : lines) {
                             matcher = realPlayerPattern.matcher(player);
                             if (matcher.matches()) {
-                                ts3Users.add(new Ts3User(stripTsString(matcher.group(2)), channels.get(matcher.group(1))));
+                                cids.add(matcher.group(1));
                             }
                         }
                     }
@@ -184,6 +184,50 @@ public class Ts3QueryThread extends QueryThread {
                 } else {
                     throw new Exception("invalid error response");
                 }
+
+                Pattern nicknamePattern = Pattern.compile("client_nickname=([^\\s]+)");
+                Pattern channelIdPattern = Pattern.compile("cid=([0-9]+)");
+                Pattern phoneticNicknamePattern = Pattern.compile("client_nickname_phonetic=([^\\s]+)");
+                Pattern versionPattern = Pattern.compile("client_version=([^\\s]+)");
+                Pattern idleTimePattern = Pattern.compile("client_idle_time=([0-9]+)");
+                Pattern connectionTimePattern = Pattern.compile("connection_connected_time=([0-9]+)");
+
+                for (String cid : cids) {
+                    outStream.println(String.format("clientinfo clid=%s", cid));
+                    HashMap<String, String> player = new HashMap<String, String>();
+                    while (!(line = inStream.readLine().trim()).startsWith("error")) {
+                        if (!line.equals("")) {
+                            if((matcher = nicknamePattern.matcher(line)).find()) {
+                                player.put("name", stripTsString(matcher.group(1)));
+                            }
+                            if((matcher = phoneticNicknamePattern.matcher(line)).find()) {
+                                player.put("pname", stripTsString(matcher.group(1)));
+                            }
+                            if((matcher = versionPattern.matcher(line)).find()) {
+                                player.put("version", stripTsString(matcher.group(1)));
+                            }
+                            if((matcher = channelIdPattern.matcher(line)).find()) {
+                                player.put("channel", channels.get(matcher.group(1)));
+                            }
+                            if((matcher = idleTimePattern.matcher(line)).find()) {
+                                player.put("idletime", matcher.group(1));
+                            }
+                            if((matcher = connectionTimePattern.matcher(line)).find()) {
+                                player.put("connectiontime", matcher.group(1));
+                            }
+                            ts3Users.add(player);
+                        }
+                    }
+                    matcher = errorPattern.matcher(line);
+                    if (matcher.matches()) {
+                        if (!matcher.group(1).equals("0")) {
+                            throw new Exception(String.format("clientinfo failed: %s", stripTsString(matcher.group(2))));
+                        }
+                    } else {
+                        throw new Exception("invalid error response");
+                    }
+                }
+
                 outStream.println("quit");
                 outStream.close();
                 inStream.close();

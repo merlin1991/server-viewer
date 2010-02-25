@@ -34,7 +34,7 @@ public class Ts3ServerData implements QueryData {
 
     private Exception exception = null;
     private Ts3Server ts3Server;
-    private ArrayList<Ts3User> ts3Users;
+    private ArrayList<HashMap<String, String>> ts3Users;
     private HashMap<String, String> ts3Settings;
 
     public Ts3ServerData(Ts3Server ts3Server, Exception exception) {
@@ -42,7 +42,7 @@ public class Ts3ServerData implements QueryData {
         this.exception = exception;
     }
 
-    public Ts3ServerData(Ts3Server ts3Server, ArrayList<Ts3User> ts3Users, HashMap<String, String> ts3Settings) {
+    public Ts3ServerData(Ts3Server ts3Server, ArrayList<HashMap<String, String>> ts3Users, HashMap<String, String> ts3Settings) {
         this.ts3Server = ts3Server;
         this.ts3Users = ts3Users;
         this.ts3Settings = ts3Settings;
@@ -56,38 +56,36 @@ public class Ts3ServerData implements QueryData {
             switch (ts3Users.size()) {
                 case 1:
                     if (ts3Settings.get("name") != null) {
-                        serverNode = new ServerTreeNode(stripTsString(ts3Settings.get("name")) + " (1 player)", ServerTreeNodeType.Ts3);
+                        serverNode = new ServerTreeNode(ts3Settings.get("name") + " (1 player)", ServerTreeNodeType.Ts3);
                     } else {
                         serverNode = new ServerTreeNode(ts3Server.getName() + " (1 player)", ServerTreeNodeType.Ts3);
                     }
                     break;
                 default:
                     if (ts3Settings.get("name") != null) {
-                        serverNode = new ServerTreeNode(stripTsString(ts3Settings.get("name")) + " (" + ts3Users.size() + " players)", ServerTreeNodeType.Ts3);
+                        serverNode = new ServerTreeNode(ts3Settings.get("name") + " (" + ts3Users.size() + " players)", ServerTreeNodeType.Ts3);
                     } else {
                         serverNode = new ServerTreeNode(ts3Server.getName() + " (" + ts3Users.size() + " players)", ServerTreeNodeType.Ts3);
                     }
                     break;
             }
-            serverNode.add(new ServerTreeNode(stripTsString(ts3Settings.get("welcomemessage")), ServerTreeNodeType.Info));
+            serverNode.add(new ServerTreeNode(ts3Settings.get("welcomemessage"), ServerTreeNodeType.Info));
             serverNode.add(new ServerTreeNode(String.format("version: %s", ts3Settings.get("version")), ServerTreeNodeType.Info));
             serverNode.add(new ServerTreeNode(String.format("platform: %s", ts3Settings.get("platform")), ServerTreeNodeType.Info));
-            serverNode.add(new ServerTreeNode(String.format("uptime: %s Seconds", ts3Settings.get("uptime")), ServerTreeNodeType.Info));
+            serverNode.add(new ServerTreeNode(String.format("uptime: %s seconds", ts3Settings.get("uptime")), ServerTreeNodeType.Info));
             ServerTreeNode playerNode;
-            for (Ts3User player : ts3Users) {
-                playerNode = new ServerTreeNode(player.getName(), ServerTreeNodeType.Users);
-                playerNode.add(new ServerTreeNode("channel: " + player.getChannel(), ServerTreeNodeType.Info));
+            for (HashMap<String, String> player : ts3Users) {
+                playerNode = new ServerTreeNode(player.get("name"), ServerTreeNodeType.Users);
+                
+                playerNode.add(new ServerTreeNode(String.format("phonetic nickname: %s", player.get("pname")), ServerTreeNodeType.Info));
+                playerNode.add(new ServerTreeNode(String.format("version: %s", player.get("version")), ServerTreeNodeType.Info));
+                playerNode.add(new ServerTreeNode(String.format("channel: %s", player.get("channel")), ServerTreeNodeType.Info));
+                playerNode.add(new ServerTreeNode(String.format("idletime: %s seconds", player.get("idletime")), ServerTreeNodeType.Info));
+                playerNode.add(new ServerTreeNode(String.format("connectiontime: %s seconds", player.get("connectiontime")), ServerTreeNodeType.Info));
+                
                 serverNode.add(playerNode);
             }
         }
         return serverNode;
-    }
-
-    private String stripTsString(String original) {
-        if (original != null) {
-            return original.replace("\\s", " ").replace("\\p", "|");
-        } else {
-            return null;
-        }
     }
 }
