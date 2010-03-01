@@ -210,10 +210,10 @@ public class Ts3QueryThread extends QueryThread {
                                 player.put("channel", channels.get(matcher.group(1)));
                             }
                             if((matcher = idleTimePattern.matcher(line)).find()) {
-                                player.put("idletime", matcher.group(1));
+                                player.put("idletime", Integer.toString(Integer.parseInt(matcher.group(1)) / 1000));
                             }
                             if((matcher = connectionTimePattern.matcher(line)).find()) {
-                                player.put("connectiontime", matcher.group(1));
+                                player.put("connectiontime", Integer.toString(Integer.parseInt(matcher.group(1)) / 1000));
                             }
                             ts3Users.add(player);
                         }
