@@ -122,7 +122,7 @@ public class Ts3QueryThread extends QueryThread {
                         }
                         pattern = Pattern.compile("virtualserver_uptime=([0-9]+)");
                         if ((matcher = pattern.matcher(line)).find()) {
-                            ts3Settings.put("uptime", stripTsString(matcher.group(1)));
+                            ts3Settings.put("uptime", Integer.toString(Integer.parseInt(matcher.group(1)) / 1000));
                         }
                     }
                 }
